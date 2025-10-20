@@ -45,7 +45,6 @@ def run_eskf(eskf: ESKF,
             z_est_pred_tseq.insert(t_gps, z_est_pred)
             x_est_upd_tseq.insert(t_gps, x_est_upd)
             t_prev = t_gps
-
         dt = t_imu - t_prev
         if dt > 0:
             x_est_pred = eskf.predict_from_imu(x_est_prev, z_imu, dt)

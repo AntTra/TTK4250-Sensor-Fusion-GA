@@ -14,7 +14,7 @@ from solution import models as models_solu
 
 @dataclass
 class ModelIMU:
-    """The IMU is considered a dynamic model instead of a sensar. 
+    """The IMU is considered a dynamic model instead of a sensor. 
     This works as an IMU measures the change between two states, 
     and not the state itself.."""
 
@@ -63,13 +63,18 @@ class ModelIMU:
         Returns:
             z_corr: corrected IMU measurement
         """
-        acc_est = np.zeros(3)
-        avel_est = np.zeros(3)
-
+        # acc_est = np.zeros(3)
+        # avel_est = np.zeros(3)
+        
         # # TODO remove this
         # z_corr = models_solu.ModelIMU.correct_z_imu(self, x_est_nom, z_imu)
         # return z_corr
         
+        acc_est = self.accm_correction @ z_imu.acc - x_est_nom.accm_bias
+        avel_est = self.gyro_correction @ z_imu.avel - x_est_nom.gyro_bias
+        
+        z_corr = CorrectedImuMeasurement(acc_est, avel_est)
+        return z_corr
 
     def predict_nom(self,
                     x_est_nom: NominalState,
@@ -78,8 +83,8 @@ class ModelIMU:
         """Predict the nominal state, given a corrected IMU measurement and a 
         time step, by discretizing (10.58) in the book.
 
-        We assume the change in orientation is negligable when caculating 
-        predicted position and velicity, see assignment pdf.
+        We assume the change in orientation is negligable when calculating 
+        predicted position and velocity, see assignment pdf.
 
         Hint: You can use: delta_rot = RotationQuaterion.from_avec(something)
 
@@ -90,20 +95,36 @@ class ModelIMU:
         Returns:
             x_nom_pred: predicted nominal state
         """
-        pos_pred = np.zeros(3)  # TODO
-        vel_pred = np.zeros(3)  # TODO
+        # pos_pred = np.zeros(3)  # TODO
+        # vel_pred = np.zeros(3)  # TODO
 
-        delta_rot = RotationQuaterion(1, np.zeros(3))  # TODO
-        ori_pred = np.zeros(3)  # TODO
+        # delta_rot = RotationQuaterion(1, np.zeros(3))  # TODO
+        # ori_pred = np.zeros(3)  # TODO
 
-        acc_bias_pred = np.zeros(3)  # TODO
-        gyro_bias_pred = np.zeros(3)  # TODO
+        # acc_bias_pred = np.zeros(3)  # TODO
+        # gyro_bias_pred = np.zeros(3)  # TODO
 
-        # TODO remove this
-        x_nom_pred = models_solu.ModelIMU.predict_nom(
-            self, x_est_nom, z_corr, dt)
-        return x_nom_pred
-
+        # # TODO remove this
+        # x_nom_pred = models_solu.ModelIMU.predict_nom(
+        #     self, x_est_nom, z_corr, dt)
+        # return x_nom_pred
+        p, v = x_est_nom.pos, x_est_nom.vel
+        Rq   = x_est_nom.ori.as_rotmat()       
+                
+        a_ned = Rq @ z_corr.acc + self.g
+                            
+        pos_pred = p + v*dt + 0.5*a_ned*dt**2
+        vel_pred = v + a_ned*dt
+        
+        delta_rot = RotationQuaterion.from_avec(z_corr.avel * dt)
+        
+        ori_pred = x_est_nom.ori @ delta_rot           
+        acc_bias_pred = np.exp(-self.accm_bias_p*dt) * self.accm_bias_p
+        gyro_bias_pred = np.exp(-self.gyro_bias_p*dt) * self.gyro_bias_p
+        
+        x_nom_pred = NominalState(pos_pred, vel_pred, ori_pred, acc_bias_pred, gyro_bias_pred)
+        return x_nom_pred    
+        
     def A_c(self,
             x_est_nom: NominalState,
             z_corr: CorrectedImuMeasurement,

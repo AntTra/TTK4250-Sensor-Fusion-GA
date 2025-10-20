@@ -45,14 +45,14 @@ class RotationQuaterion(NamedArray):
         # eta_out = 1  # TODO
         # epout = np.zeros(3)  # TODO
 
-        eta_out = eta_a * eta_b - np.transpose(epsilon_a) * epsilon_b
+        eta_out = eta_a * eta_b - float(np.transpose(epsilon_a) @ epsilon_b)
         epout = (
             eta_a * epsilon_b
             + eta_b * epsilon_a
             + np.cross(epsilon_a, epsilon_b)
         )
 
-        return RotationQuaterion.multiply(eta_out, epout)
+        return RotationQuaterion(eta_out, epout)
         # TODO remove this
         # quaternion_product = quaternion_solu.RotationQuaterion.multiply(
         #     self, other)
