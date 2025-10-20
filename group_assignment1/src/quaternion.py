@@ -4,7 +4,6 @@ from dataclasses import dataclass
 from scipy.spatial.transform import Rotation
 
 from senfuslib import NamedArray, AtIndex
-# from solution import quaternion as quaternion_solu
 
 
 @dataclass
@@ -40,22 +39,19 @@ class RotationQuaterion(NamedArray):
         Returns:
             quaternion_product: the product
         """
-        eta_a, epsilon_a = self
-        eta_b, epsilon_b = other
-        eta_out = 1  # TODO
-        epout = np.zeros(3)  # TODO
-
-        # TODO remove this
-        # quaternion_product = quaternion_solu.RotationQuaterion.multiply(
-        #     self, other)
-        # return quaternion_product
+        eta_a, epsilon_a = float(self.eta), np.asarray(self.epsilon)
+        eta_b, epsilon_b = float(other.eta), np.asarray(other.epsilon)
+        quaternion_product_eta = eta_a * eta_b - float(np.dot(epsilon_a, epsilon_b))
+        quaternion_product_epsilon = (
+            eta_a * epsilon_b + eta_b * epsilon_a + np.cross(epsilon_a, epsilon_b)
+        )
+        quaternion_product = RotationQuaterion(
+            quaternion_product_eta, quaternion_product_epsilon)
+        return quaternion_product
 
     def conjugate(self) -> 'RotationQuaterion':
         """Get the conjugate of the RotationQuaternion"""
-
-        # TODO remove this
-        # conj = quaternion_solu.RotationQuaterion.conjugate(self)
-        # return conj
+        return RotationQuaterion(self.eta, -self.epsilon)
 
     def diff(self, other: 'RotationQuaterion') -> 'RotationQuaterion':
         """Get the difference between two quaternions3
