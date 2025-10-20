@@ -99,6 +99,8 @@ class CorrectedImuMeasurement(ImuMeasurement):
     Corrected for axis alignmentand scale scale, and bias. 
     Not 'corrected' for gravity.
     """
+    acc : AtIndex[0:3] | WithXYZ
+    avel : AtIndex[3:6] | WithXYZ
 
 
 @ dataclass

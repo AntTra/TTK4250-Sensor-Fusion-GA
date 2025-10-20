@@ -6,27 +6,27 @@
             "type": "python",
             "request": "launch",
             "program": "${workspaceFolder}/src/main.py",
-            "console": "integratedTerminal"
+            "console": "internalConsole"
         },
         {
             "name": "Python: Current File",
             "type": "python",
             "request": "launch",
             "program": "${file}",
-            "console": "integratedTerminal"
+            "console": "internalConsole"
         },
         {
             "name": "Python: create handin zip",
             "type": "python",
             "request": "launch",
             "program": "${workspaceFolder}/create_handin.py",
-            "console": "integratedTerminal"
+            "console": "internalConsole"
         },
         {
             "name": "Debug Tests",
             "type": "python",
             "request": "test",
-            "console": "integratedTerminal",
+            "console": "internalConsole",
             "justMyCode": true,
             "env": {
                 "_PYTEST_RAISE": "1"

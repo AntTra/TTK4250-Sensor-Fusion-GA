@@ -63,11 +63,12 @@ class ModelIMU:
         Returns:
             z_corr: corrected IMU measurement
         """
-        acc_est = np.zeros(3)
-        avel_est = np.zeros(3)
+        
+        z_corr = CorrectedImuMeasurement(
+            acc=self.accm_correction @ (z_imu.acc - x_est_nom.accm_bias),
+            avel=self.gyro_correction @ (z_imu.avel - x_est_nom.gyro_bias)
+        )
 
-        # TODO remove this
-        z_corr = models_solu.ModelIMU.correct_z_imu(self, x_est_nom, z_imu)
         return z_corr
 
     def predict_nom(self,
@@ -89,19 +90,28 @@ class ModelIMU:
         Returns:
             x_nom_pred: predicted nominal state
         """
-        pos_pred = np.zeros(3)  # TODO
-        vel_pred = np.zeros(3)  # TODO
+        
+        R = x_est_nom.ori.as_rotmat()
 
-        delta_rot = RotationQuaterion(1, np.zeros(3))  # TODO
-        ori_pred = np.zeros(3)  # TODO
+        # specific force to navigation (match your sign for g)
+        a_nav = R @ z_corr.acc - self.g
 
-        acc_bias_pred = np.zeros(3)  # TODO
-        gyro_bias_pred = np.zeros(3)  # TODO
+        # position & velocity (second-order in p)
+        pos_pred = x_est_nom.pos + dt * x_est_nom.vel + 0.5 * (dt**2) * a_nav
+        vel_pred = x_est_nom.vel + dt * a_nav
 
-        # TODO remove this
-        x_nom_pred = models_solu.ModelIMU.predict_nom(
-            self, x_est_nom, z_corr, dt)
-        return x_nom_pred
+        # quaternion via exponential map (delta from rotation vector κ = omega*dt)
+        delta_q = RotationQuaterion.from_avec(z_corr.avel * dt)  
+        ori_pred = x_est_nom.ori @ delta_q
+
+        # bias first-order decay
+        acc_bias_pred  = x_est_nom.accm_bias  * (1 - self.accm_bias_p  * dt)
+        gyro_bias_pred = x_est_nom.gyro_bias * (1 - self.gyro_bias_p * dt)
+
+        return NominalState(
+            pos=pos_pred, vel=vel_pred, ori=ori_pred,
+            accm_bias=acc_bias_pred, gyro_bias=gyro_bias_pred
+        )
 
     def A_c(self,
             x_est_nom: NominalState,
