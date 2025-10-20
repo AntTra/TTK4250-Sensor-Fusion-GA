@@ -101,7 +101,7 @@ class ModelIMU:
         vel_pred = x_est_nom.vel + dt * a_nav
 
         # quaternion via exponential map (delta from rotation vector κ = omega*dt)
-        delta_q = RotationQuaterion.from_avec(z_corr.avel * dt)  
+        delta_q = RotationQuaterion.from_avec(0.5*z_corr.avel * dt)  
         ori_pred = x_est_nom.ori @ delta_q
 
         # bias first-order decay
@@ -122,7 +122,7 @@ class ModelIMU:
         Hint: The S matrices can be created using get_cross_matrix. In the book
         a perfect IMU is expected (thus many I matrices). Here we have 
         to use the correction matrices, self.accm_correction and 
-        self.gyro_correction, instead of som of the I matrices.  
+        self.gyro_correction, instead of some of the I matrices.  
 
         You can use block_3x3 to simplify indexing if you want to.
         ex: first I element in A can be set as A[block_3x3(0, 1)] = np.eye(3)
@@ -137,9 +137,15 @@ class ModelIMU:
         Rq = x_est_nom.ori.as_rotmat()
         S_acc = get_cross_matrix(z_corr.acc)
         S_omega = get_cross_matrix(z_corr.avel)
+        
+        A_c[block_3x3(0, 1)] = np.eye(3)
+        A_c[block_3x3(1, 2)] = -Rq @ S_acc
+        A_c[block_3x3(1, 3)] = -Rq @ self.accm_correction
+        A_c[block_3x3(2, 2)] = -S_omega
+        A_c[block_3x3(2, 4)] = -self.gyro_correction
+        A_c[block_3x3(3, 3)] = -self.accm_bias_p * np.eye(3)
+        A_c[block_3x3(4, 4)] = -self.gyro_bias_p * np.eye(3)
 
-        # TODO remove this
-        A_c = models_solu.ModelIMU.A_c(self, x_est_nom, z_corr)
         return A_c
 
     def get_error_G_c(self,
@@ -157,9 +163,11 @@ class ModelIMU:
         """
         G_c = np.zeros((15, 12))
         Rq = x_est_nom.ori.as_rotmat()
-
-        # TODO remove this
-        G_c = models_solu.ModelIMU.get_error_G_c(self, x_est_nom)
+        
+        G_c[block_3x3(1, 0)] = -Rq
+        G_c[block_3x3(2, 1)] = -np.eye(3)
+        G_c[block_3x3(3, 2)] = np.eye(3)
+        G_c[block_3x3(4, 3)] = np.eye(3)
 
         return G_c
 
@@ -185,21 +193,23 @@ class ModelIMU:
             A_d (ndarray[15, 15]): discrede transition matrix
             GQGT_d (ndarray[15, 15]): discrete noise covariance matrix
         """
-        A_c = None  # TODO
-        G_c = None  # TODO
-        GQGT_c = None  # TODO
+        A_c = self.A_c(x_est_nom, z_corr)
+        G_c = self.get_error_G_c(x_est_nom)
+        Q_c = G_c @ self.Q_c @ G_c.T
 
-        exponent = None  # TODO
-        VanLoanMatrix = None  # TODO
+        # Build Van Loan matrix
+        top = np.hstack((A_c, Q_c))
+        bottom = np.hstack((np.zeros_like(A_c), -A_c.T))
+        VanLoan = np.vstack((top, bottom))
 
-        A_d = None  # TODO
-        GQGT_d = None  # TODO
+        # Matrix exponential
+        VanLoan_exp = scipy.linalg.expm(VanLoan * dt)
 
-        # TODO remove this
-        A_d, GQGT_d = models_solu.ModelIMU.get_discrete_error_diff(
-            self, x_est_nom, z_corr, dt)
-
-        return A_d, GQGT_d
+        A_d = VanLoan_exp[0:15, 0:15]
+        Q_block = VanLoan_exp[0:15, 15:30]
+        Q_d = Q_block @ A_d.T
+        Q_d = 0.5 * (Q_d + Q_d.T)  # enforce symmetry
+        return A_d, Q_d
 
     def predict_err(self,
                     x_est_prev: EskfState,
@@ -220,10 +230,14 @@ class ModelIMU:
         """
         x_est_prev_nom = x_est_prev.nom
         x_est_prev_err = x_est_prev.err
-        Ad, GQGTd = None, None  # TODO
-        P_pred = np.eye(15)  # TODO
-
-        # TODO remove this
-        x_err_pred = models_solu.ModelIMU.predict_err(
-            self, x_est_prev, z_corr, dt)
+        Ad, GQGTd = self.get_discrete_error_diff(
+            x_est_prev_nom, z_corr, dt)
+        P_pred = Ad @ x_est_prev_err.cov @ Ad.T + GQGTd
+        P_pred = 0.5 * (P_pred + P_pred.T)
+        
+        x_err_pred = MultiVarGauss(
+            mean=Ad @ x_est_prev_err.mean,
+            cov=P_pred
+        )
+        
         return x_err_pred
