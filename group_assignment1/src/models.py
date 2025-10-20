@@ -66,9 +66,10 @@ class ModelIMU:
         acc_est = np.zeros(3)
         avel_est = np.zeros(3)
 
-        # TODO remove this
-        z_corr = models_solu.ModelIMU.correct_z_imu(self, x_est_nom, z_imu)
-        return z_corr
+        # # TODO remove this
+        # z_corr = models_solu.ModelIMU.correct_z_imu(self, x_est_nom, z_imu)
+        # return z_corr
+        
 
     def predict_nom(self,
                     x_est_nom: NominalState,
