@@ -92,21 +92,27 @@ class ModelIMU:
         """
         
         R = x_est_nom.ori.as_rotmat()
+        p, v = x_est_nom.pos, x_est_nom.vel
 
         # specific force to navigation (match your sign for g)
-        a_nav = R @ z_corr.acc - self.g
+        a_ned = R @ z_corr.acc + self.g
 
         # position & velocity (second-order in p)
-        pos_pred = x_est_nom.pos + dt * x_est_nom.vel + 0.5 * (dt**2) * a_nav
-        vel_pred = x_est_nom.vel + dt * a_nav
+        pos_pred = p + dt * v
+        vel_pred = v + dt * a_ned
 
         # quaternion via exponential map (delta from rotation vector κ = omega*dt)
-        delta_q = RotationQuaterion.from_avec(0.5*z_corr.avel * dt)  
+        delta_q = RotationQuaterion.from_avec(z_corr.avel * dt)  
         ori_pred = x_est_nom.ori @ delta_q
+        ori_pred = ori_pred / np.linalg.norm(ori_pred)  # normalize
 
         # bias first-order decay
-        acc_bias_pred  = x_est_nom.accm_bias  * (1 - self.accm_bias_p  * dt)
-        gyro_bias_pred = x_est_nom.gyro_bias * (1 - self.gyro_bias_p * dt)
+        alpha_a = np.exp(-self.accm_bias_p * dt)
+        alpha_g = np.exp(-self.gyro_bias_p * dt)
+
+        acc_bias_pred  = alpha_a * x_est_nom.accm_bias
+        gyro_bias_pred = alpha_g * x_est_nom.gyro_bias
+
 
         return NominalState(
             pos=pos_pred, vel=vel_pred, ori=ori_pred,
