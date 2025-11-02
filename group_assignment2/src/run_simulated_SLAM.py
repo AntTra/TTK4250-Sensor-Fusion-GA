@@ -283,6 +283,34 @@ def main():
 
     fig5.tight_layout()
 
+    # Automatically save generated plots as PNG into a results/figures directory
+    results_dir = Path(__file__).parents[1].joinpath("results")
+    figures_dir = results_dir.joinpath("figures")
+    try:
+        figures_dir.mkdir(parents=True, exist_ok=True)
+    except Exception as e:
+        print(f"Could not create figures directory: {e}")
+
+    def _save_fig(fig, name):
+        try:
+            path = figures_dir.joinpath(name)
+            fig.savefig(path, dpi=200, bbox_inches='tight')
+            print(f"Saved figure: {path}")
+        except Exception as e:
+            print(f"Failed to save figure {name}: {e}")
+
+    # Try to save the common figures if they were created
+    for fname in ["fig2", "fig3", "fig4", "fig5", "figAsso"]:
+        try:
+            fig_obj = locals()[fname]
+        except Exception:
+            continue
+        _save_fig(fig_obj, f"{fname}.png")
+
+    # optionally save association plot if created
+    if 'doAssoPlot' in locals() and doAssoPlot:
+        _save_fig(figAsso, 'associations.png')
+
     # %% Movie time
 
     if playMovie:
