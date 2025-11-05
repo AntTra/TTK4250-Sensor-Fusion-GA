@@ -99,13 +99,11 @@ def main():
 
     # %% Initilize
     Q = np.diag([0.1, 0.1, 1 * np.pi / 180]) ** 2 # TODO tune
-    R = np.diag([0.1, 1 * np.pi / 180]) ** 2 # TODO tune
+    R = np.diag([0.1, 0.8 * np.pi / 180]) ** 2 # TODO tune
 
     doAsso = True
 
-    JCBBalphas = np.array(
-        [0.001, 0.0001] # TODO tune
-    )  # first is for joint compatibility, second is individual
+    JCBBalphas = np.array([1e-10, 0.00001])
 
     slam = EKFSLAM(Q, R, do_asso=doAsso, alphas=JCBBalphas)
 
@@ -283,34 +281,6 @@ def main():
 
     fig5.tight_layout()
 
-    # Automatically save generated plots as PNG into a results/figures directory
-    results_dir = Path(__file__).parents[1].joinpath("results")
-    figures_dir = results_dir.joinpath("figures")
-    try:
-        figures_dir.mkdir(parents=True, exist_ok=True)
-    except Exception as e:
-        print(f"Could not create figures directory: {e}")
-
-    def _save_fig(fig, name):
-        try:
-            path = figures_dir.joinpath(name)
-            fig.savefig(path, dpi=200, bbox_inches='tight')
-            print(f"Saved figure: {path}")
-        except Exception as e:
-            print(f"Failed to save figure {name}: {e}")
-
-    # Try to save the common figures if they were created
-    for fname in ["fig2", "fig3", "fig4", "fig5", "figAsso"]:
-        try:
-            fig_obj = locals()[fname]
-        except Exception:
-            continue
-        _save_fig(fig_obj, f"{fname}.png")
-
-    # optionally save association plot if created
-    if 'doAssoPlot' in locals() and doAssoPlot:
-        _save_fig(figAsso, 'associations.png')
-
     # %% Movie time
 
     if playMovie:
@@ -353,6 +323,18 @@ def main():
             print(
                 "Install celluloid module, \n\n$ pip install celluloid\n\nto get fancy animation of EKFSLAM."
             )
+            
+    # %% Save plots
+    outdir = Path(__file__).parents[1].joinpath("plots")
+    outdir.mkdir(exist_ok=True)
+
+    fig2.savefig(outdir / "fig2.png", dpi=300, bbox_inches="tight")
+    fig3.savefig(outdir / "fig3.png", dpi=300, bbox_inches="tight")
+    fig4.savefig(outdir / "fig4.png", dpi=300, bbox_inches="tight")
+    fig5.savefig(outdir / "fig5.png", dpi=300, bbox_inches="tight")
+
+    print(f"Figures saved to {outdir.resolve()}")
+
     plt.show()
     # %%
 
